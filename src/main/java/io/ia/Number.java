@@ -86,6 +86,41 @@ public class Number {
         return c;
     }
 
+    private boolean isJumping() {
+        if (this.num < 10) return true;
+
+        String numStr = String.valueOf(this.num);
+        for (int i = 0; i < numStr.length() - 1; i++) {
+            int result= Character.getNumericValue(numStr.charAt(i)) - Character.getNumericValue(numStr.charAt(i + 1));
+            if (result != 1 && result != -1) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean isHappy() {
+        if (this.num == 1) return true;
+
+        int sum = 0;
+        long n = this.num;
+
+        List<Long> calculatedNumbers = new ArrayList<>();
+
+        while (sum != 1) {
+            sum = 0;
+            String nStr = String.valueOf(n);
+            for (int i = 0; i < nStr.length(); i++) {
+                int digit = Character.getNumericValue(nStr.charAt(i));
+                sum += digit * digit;
+            }
+            n = sum;
+            if (calculatedNumbers.contains(n)) return false;
+            calculatedNumbers.add(n);
+        }
+        return true;
+    }
+
     private void calculateProperties() {
         if (isBuzz()) {
             this.addProperty(Property.buzz);
@@ -108,10 +143,18 @@ public class Number {
         if (isSunny()){
             this.addProperty(Property.sunny);
         }
+        if (isJumping()) {
+            this.addProperty(Property.jumping);
+        }
         if (isEven()) {
             this.addProperty(Property.even);
         } else {
             this.addProperty(Property.odd);
+        }
+        if (isHappy()) {
+            this.addProperty(Property.happy);
+        } else {
+            this.addProperty(Property.sad);
         }
     }
 

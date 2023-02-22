@@ -6,12 +6,13 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.stream.Collectors;
 
-
 public class Request {
     private static final Scanner input = new Scanner(System.in);
     private long number;
     private int count;
-    private List<Property> properties = new ArrayList<>();
+    private List<Property> requiredProperties = new ArrayList<>();
+
+    private List<Property> excludedProperties = new ArrayList<>();
 
 
     public Request() {
@@ -34,12 +35,16 @@ public class Request {
         this.count = count;
     }
 
-    public List<Property> getProperties() {
-        return this.properties;
+    public List<Property> getRequiredProperties() {
+        return this.requiredProperties;
+    }
+
+    public List<Property> getExcludedProperties() {
+        return excludedProperties;
     }
 
     public void addProperty(Property p) {
-        this.properties.add(p);
+        this.requiredProperties.add(p);
     }
 
     private long parseLong(String n) throws NumberFormatException{
@@ -85,35 +90,94 @@ public class Request {
 
                 if (entries.length >= 3) {
                     String[] propsArr = Arrays.copyOfRange(entries, 2, entries.length);
-                    List<String> reqProps = Arrays.stream(propsArr).map(String::toLowerCase).collect(Collectors.toList());
-                    if (reqProps.containsAll(List.of("even", "odd"))) {
-                        System.out.printf("The request contains mutually exclusive properties: [%s, %s]\n", reqProps.get(0).toUpperCase(), reqProps.get(1).toUpperCase());
-                        continue;
-                    } else if (reqProps.containsAll(List.of("square", "sunny"))) {
-                        System.out.printf("The request contains mutually exclusive properties: [%s, %s]\n", reqProps.get(0).toUpperCase(), reqProps.get(1).toUpperCase());
-                        continue;
-                    } else if (reqProps.containsAll(List.of("duck", "spy"))) {
-                        System.out.printf("The request contains mutually exclusive properties: [%s, %s]\n", reqProps.get(0).toUpperCase(), reqProps.get(1).toUpperCase());
-                        continue;
-                    } else if (reqProps.size() == 1 && !Property.getNames().contains(reqProps.get(0))) {
-                        System.out.printf("The property [%s] is wrong.\nAvailable properties: [BUZZ, DUCK, PALINDROMIC, GAPFUL, SPY, SQUARE, SUNNY, EVEN, ODD]\n", reqProps.get(0).toUpperCase());
-                        continue;
-                    } else if (reqProps.size() == 2 && !Property.getNames().contains(reqProps.get(0)) && !Property.getNames().contains(reqProps.get(1))) {
-                        System.out.printf("The properties [%s, %s] are wrong.\nAvailable properties: [BUZZ, DUCK, PALINDROMIC, GAPFUL, SPY, SQUARE, SUNNY, EVEN, ODD]\n ", reqProps.get(0).toUpperCase(), reqProps.get(1).toUpperCase());
+                    List<String> requestProps = Arrays.stream(propsArr)
+                            .map(String::toLowerCase)
+                            .collect(Collectors.toList());
+
+                    try {
+                        checkForUnknown(requestProps);
+                    } catch (InputException e) {
+                        System.out.println(e.getMessage());
                         continue;
                     }
-                    for (String prop:  reqProps) {
-                        if (!Property.getNames().contains(prop)) {
-                            System.out.printf("The property [%s] is wrong.\nAvailable properties: [BUZZ, DUCK, PALINDROMIC, GAPFUL, SPY, SQUARE, SUNNY, EVEN, ODD]\n", prop.toUpperCase());
-                            break;
-                        } else {
-                            this.addProperty(Property.valueOf(prop));
+
+                    try {
+                        checkMutuallyExclusive(requestProps);
+                    } catch (InputException e) {
+                        System.out.println(e.getMessage());
+                        continue;
+                    }
+
+                    List<String> excludedProps = new ArrayList<>();
+                    List<String> includedProps = new ArrayList<>();
+
+                    requestProps.stream()
+                            .map(s -> {
+                                if (s.startsWith("-")) {
+                                    s = s.substring(1);
+                                    excludedProps.add(s);
+                                } else {
+                                    includedProps.add(s);
+                                };
+                                return s;
+                            })
+                            .collect(Collectors.toList());
+
+                    for (String prop:  includedProps) {
+                        this.addProperty(Property.valueOf(prop));
+                    }
+                    if (!excludedProps.isEmpty()) {
+                        for (String prop: excludedProps) {
+                            this.excludedProperties.add(Property.valueOf(prop));
                         }
                     }
                 }
                 System.out.println();
                 inLoop = false;
             }
+        }
+    }
+
+    private void checkMutuallyExclusive(List<String> properties) throws InputException {
+        for (int i = 0; i < properties.size(); i++) {
+            String prop = properties.get(i);
+            if (!prop.startsWith("-") && properties.contains(String.format("-%s", prop))) {
+                String err = String.format("The request contains mutually exclusive properties: [%s, -%s]\nThere are no numbers with these properties.", prop, prop);
+                throw new InputException(err);
+            } else if (prop.startsWith("-") && properties.contains(prop.substring(1))) {
+                String err = String.format("The request contains mutually exclusive properties: [%s, %s]\nThere are no numbers with these properties.", prop, prop.substring(1));
+                throw new InputException(err);
+            }
+        }
+        List<List<String>> mEProps = List.of(
+                List.of("even", "odd"), List.of("square", "sunny"), List.of("duck", "spy"), List.of("happy", "sad"),
+                List.of("-even", "-odd"), List.of("-square", "-sunny"), List.of("-duck", "-spy"), List.of("-happy", "-sad")
+        );
+        if (properties.size() > 1) {
+            for (List<String> item : mEProps) {
+                if (properties.containsAll(item)) {
+                    String err = String.format("The request contains mutually exclusive properties: %s\nThere are no numbers with these properties", item.stream().map(String::toUpperCase).collect(Collectors.toList()));
+                    throw new InputException(err);
+                }
+            }
+        }
+    }
+
+    private void checkForUnknown(List<String> properties) throws InputException {
+        List<String> availableProps = new ArrayList<>();
+        Property.getNames().stream()
+                .forEach(e -> {
+                    availableProps.add(e);
+                    availableProps.add(String.format("-%s", e));
+                });
+        List<String> unknownProps = new ArrayList<>();
+        for (String prop: properties) {
+            if (!availableProps.contains(prop)) unknownProps.add(prop.toUpperCase());
+        }
+        if (!unknownProps.isEmpty() && unknownProps.size() == 1) {
+            throw new InputException(String.format("The property %s is wrong.\nAvailable properties: [EVEN, ODD, BUZZ, DUCK, PALINDROMIC, GAPFUL, SPY, SQUARE, SUNNY, JUMPING, HAPPY, SAD]\n", unknownProps));
+        } else if (!unknownProps.isEmpty()) {
+            throw new InputException(String.format("The properties %s are wrong.\nAvailable properties: [EVEN, ODD, BUZZ, DUCK, PALINDROMIC, GAPFUL, SPY, SQUARE, SUNNY, JUMPING, HAPPY, SAD]\n", unknownProps));
         }
     }
 
@@ -124,12 +188,12 @@ public class Request {
     public static void printInstructions() {
         System.out.println("""
                 Supported requests:
-                - enter a natural number to know its properties;\s
+                - enter a natural number to know its properties;
                 - enter two natural numbers to obtain the properties of the list:
                   * the first parameter represents a starting number;
-                  * the second parameter shows how many consecutive numbers are to be printed;
-                - two natural numbers and a property to search for;
-                - two natural numbers and two properties to search for;
+                  * the second parameter shows how many consecutive numbers are to be processed;
+                - two natural numbers and properties to search for;
+                - a property preceded by minus must not be present in numbers;
                 - separate the parameters with one space;
                 - enter 0 to exit.
                 """);
@@ -140,7 +204,8 @@ public class Request {
         return "Request{" +
                 "number=" + number +
                 ", count=" + count +
-                ", properties=" + properties +
+                ", requiredProperties=" + requiredProperties +
+                ", excludedProperties=" + excludedProperties +
                 '}';
     }
 }

@@ -12,8 +12,10 @@ public enum Property {
     gapful,
     spy,
     square,
-    sunny;
-
+    sunny,
+    jumping,
+    sad,
+    happy;
     public static List<String> getNames() {
         return Stream.of(Property.values()).map(Property::name).toList();
     }
